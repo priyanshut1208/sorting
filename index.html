@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SortLab — Interactive Sorting Visualizer & Dry-Run Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom subtle scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.5);
+    }
+    .bar-transition {
+      transition: height 0.22s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.18s ease, transform 0.22s ease;
+    }
+    .code-line-active {
+      background: rgba(99, 102, 241, 0.22);
+      border-left: 3px solid #6366f1;
+    }
+    html:not(.dark) .code-line-active {
+      background: rgba(99, 102, 241, 0.12);
+      border-left: 3px solid #4f46e5;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200 selection:bg-indigo-500 selection:text-white">
+
+  <!-- Top Navigation & Syllabus Algorithm Selector -->
+  <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+      <!-- Brand -->
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold tracking-tight leading-none">SortLab <span class="text-indigo-500">Dry-Run</span></h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Syllabus Sorting Visualizer & Execution Tracer</p>
+        </div>
+      </div>
+
+      <!-- Category Tabs + Algorithm Pills -->
+      <div class="flex flex-wrap items-center gap-2 flex-1 justify-center">
+        <div class="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800/90 p-1 border border-slate-200 dark:border-slate-700/70">
+          <button id="tab-comparison" onclick="setCategory('comparison')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm">
+            Comparison-Based (6)
+          </button>
+          <button id="tab-noncomparison" onclick="setCategory('noncomparison')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+            Non-Comparison (3)
+          </button>
+        </div>
+
+        <!-- Algorithm Selector Pills -->
+        <div id="algo-buttons" class="flex flex-wrap items-center gap-1.5"></div>
+      </div>
+
+      <!-- Theme Toggle -->
+      <div class="flex items-center gap-2">
+        <button id="theme-toggle" onclick="toggleTheme()" title="Toggle Light/Dark Theme" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors">
+          <svg id="icon-sun" class="w-4 h-4 text-amber-400 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"></circle>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+          </svg>
+          <svg id="icon-moon" class="w-4 h-4 text-slate-700 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Custom Array & Preset Controls Bar -->
+  <section class="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <!-- Custom Input Form -->
+      <div class="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+        <label for="custom-array-input" class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 whitespace-nowrap">Custom Array:</label>
+        <div class="relative flex-1 max-w-md">
+          <input id="custom-array-input" type="text" value="29, 10, 14, 37, 14, 5, 22, 18" placeholder="e.g. 29, 10, 14, 37, 5"
+            class="w-full px-3 py-1.5 text-sm font-mono rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+        </div>
+        <button onclick="applyCustomArray()" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition active:scale-95">
+          Apply Array
+        </button>
+      </div>
+
+      <!-- Randomizer & Presets -->
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700">
+          <span class="text-xs text-slate-500 dark:text-slate-400">Size:</span>
+          <input id="size-slider" type="range" min="5" max="18" value="8" oninput="document.getElementById('size-val').textContent=this.value" class="w-16 accent-indigo-500 cursor-pointer" />
+          <span id="size-val" class="text-xs font-mono font-bold w-4 text-center">8</span>
+          <button onclick="generateRandomArray()" class="ml-1 px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-indigo-500 hover:text-white text-xs font-medium transition">
+            Randomize
+          </button>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <button onclick="applyPreset('small')" class="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition">Small</button>
+          <button onclick="applyPreset('nearly')" class="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition">Nearly Sorted</button>
+          <button onclick="applyPreset('reverse')" class="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition">Reverse</button>
+          <button onclick="applyPreset('duplicates')" class="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition">Duplicates</button>
+        </div>
+      </div>
+    </div>
+    <!-- Inline Toast / Validation Message -->
+    <div id="status-banner" class="hidden max-w-[1600px] mx-auto px-4 sm:px-6 pb-2.5">
+      <div id="status-banner-inner" class="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between"></div>
+    </div>
+  </section>
+
+  <!-- Main Workspace Grid -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+    <!-- LEFT COLUMN (7 cols on lg): Algorithm Specs + Visualization Stage + Playback Controls -->
+    <div class="lg:col-span-7 flex flex-col gap-4">
+
+      <!-- Algorithm Complexity & Metadata Card -->
+      <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2.5">
+              <h2 id="algo-title" class="text-lg font-bold tracking-tight">Selection Sort</h2>
+              <span id="algo-category-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">Comparison-Based</span>
+              <span id="algo-stable-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">Unstable</span>
+            </div>
+            <p id="algo-desc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
+              Repeatedly finds the minimum element from the unsorted portion and places it at the beginning.
+            </p>
+          </div>
+
+          <!-- Complexity Badges -->
+          <div class="grid grid-cols-4 gap-2 text-center">
+            <div class="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70">
+              <div class="text-[10px] uppercase tracking-wider text-slate-400">Best</div>
+              <div id="comp-best" class="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">O(n²)</div>
+            </div>
+            <div class="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70">
+              <div class="text-[10px] uppercase tracking-wider text-slate-400">Average</div>
+              <div id="comp-avg" class="text-xs font-mono font-bold text-amber-600 dark:text-amber-400 mt-0.5">O(n²)</div>
+            </div>
+            <div class="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70">
+              <div class="text-[10px] uppercase tracking-wider text-slate-400">Worst</div>
+              <div id="comp-worst" class="text-xs font-mono font-bold text-rose-600 dark:text-rose-400 mt-0.5">O(n²)</div>
+            </div>
+            <div class="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70">
+              <div class="text-[10px] uppercase tracking-wider text-slate-400">Space</div>
+              <div id="comp-space" class="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">O(1)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visualization Canvas Card -->
+      <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm flex-1 flex flex-col justify-between min-h-[370px]">
+        <!-- Legend & Live Operation Metrics -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex flex-wrap items-center gap-3 text-xs">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-sky-500 inline-block"></span>Unsorted</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-amber-400 inline-block"></span>Comparing</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-rose-500 inline-block"></span>Swap / Write</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-purple-500 inline-block"></span>Pivot / Key / Min</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-emerald-500 inline-block"></span>Sorted</span>
+          </div>
+
+          <div class="flex items-center gap-3 text-xs font-mono">
+            <span class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800">Comparisons: <strong id="metric-comp" class="text-amber-500">0</strong></span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800">Writes/Swaps: <strong id="metric-writes" class="text-rose-500">0</strong></span>
+          </div>
+        </div>
+
+        <!-- Main Array Bars Stage -->
+        <div class="my-auto py-4">
+          <div id="bars-container" class="h-56 sm:h-64 flex items-end justify-center gap-1.5 sm:gap-2.5 px-2 pt-6 pb-2 select-none">
+            <!-- Bars rendered dynamically -->
+          </div>
+          <!-- Index Labels Row -->
+          <div id="indices-container" class="flex items-center justify-center gap-1.5 sm:gap-2.5 px-2 mt-1">
+            <!-- Indices rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Auxiliary Data Structure Panel (Count Array / Radix Buckets / Bucket Sort Bins / Merge Temp) -->
+        <div id="aux-panel" class="hidden mt-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <span id="aux-title" class="text-xs font-bold uppercase tracking-wider text-indigo-500">Auxiliary Structure</span>
+            <span id="aux-subtitle" class="text-xs font-mono text-slate-500 dark:text-slate-400"></span>
+          </div>
+          <div id="aux-content" class="overflow-x-auto pb-1"></div>
+        </div>
+      </div>
+
+      <!-- Playback & Timeline Controls Card -->
+      <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+        <!-- Timeline Scrubber -->
+        <div class="flex items-center gap-3 mb-3">
+          <span id="step-counter" class="text-xs font-mono font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap min-w-[105px]">Step 0 / 0</span>
+          <input id="step-scrubber" type="range" min="0" max="0" value="0" oninput="jumpToStep(parseInt(this.value))" class="flex-1 accent-indigo-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg" />
+        </div>
+
+        <!-- Buttons & Speed Control -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <button onclick="resetPlayback()" title="Reset to Step 0" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition active:scale-95">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+
+            <button onclick="prevStep()" title="Previous Step (Left Arrow)" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center gap-1 transition active:scale-95">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              Prev
+            </button>
+
+            <button id="play-pause-btn" onclick="togglePlay()" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-500/20 transition active:scale-95">
+              <svg id="icon-play" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <svg id="icon-pause" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              <span id="play-pause-text">Play</span>
+            </button>
+
+            <button onclick="nextStep()" title="Next Step (Right Arrow)" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center gap-1 transition active:scale-95">
+              Next
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
+
+          <!-- Speed Slider -->
+          <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+            <span class="text-xs text-slate-500 dark:text-slate-400">Speed:</span>
+            <input id="speed-slider" type="range" min="1" max="10" value="5" oninput="updateSpeed(this.value)" class="w-20 accent-indigo-500 cursor-pointer" />
+            <span id="speed-label" class="text-xs font-mono font-bold w-8 text-right">1.0x</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN (5 cols on lg): Synchronized Code Dry-Run & Live Variable Watch -->
+    <div class="lg:col-span-5 flex flex-col gap-4">
+
+      <!-- Plain-English Step Narration Box -->
+      <div class="rounded-2xl bg-gradient-to-r from-indigo-500/10 via-violet-500/10 to-purple-500/10 border border-indigo-500/25 p-4 shadow-sm">
+        <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-1">
+          <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+          Current Execution Step
+        </div>
+        <p id="step-explanation" class="text-sm font-medium text-slate-800 dark:text-slate-100 leading-relaxed">
+          Click Play or Next Step to start tracing the algorithm line by line.
+        </p>
+      </div>
+
+      <!-- Live Variable Watch Table -->
+      <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+        <div class="flex items-center justify-between mb-2.5">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Live Variable Watch
+          </h3>
+          <span class="text-[11px] font-mono text-slate-400">Dry-Run Memory</span>
+        </div>
+        <div id="variables-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <!-- Variables populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Code Dry-Run Panel -->
+      <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex flex-col overflow-hidden">
+        <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-900">
+          <div class="flex items-center gap-2">
+            <div class="flex gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            </div>
+            <span id="code-filename" class="text-xs font-mono font-semibold text-slate-600 dark:text-slate-300 ml-1">selection_sort.py</span>
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/25">Python 3</span>
+          </div>
+          <button onclick="copyAlgorithmCode()" id="copy-code-btn" class="text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-800 hover:bg-indigo-500 hover:text-white transition">
+            Copy Python Code
+          </button>
+        </div>
+
+        <div id="code-container" class="p-3 font-mono text-xs sm:text-[13px] leading-relaxed overflow-auto flex-1 select-text">
+          <!-- Code lines injected here -->
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // =========================================================================
+    // 1. ALGORITHM DEFINITIONS, METADATA & VERIFIED RUNNABLE PYTHON 3 CODE
+    // =========================================================================
+    const ALGORITHMS = {
+      selection: {
+        id: 'selection',
+        name: 'Selection Sort',
+        category: 'comparison',
+        stable: false,
+        best: 'O(n²)',
+        avg: 'O(n²)',
+        worst: 'O(n²)',
+        space: 'O(1)',
+        filename: 'selection_sort.py',
+        description: 'Divides the list into a sorted and unsorted region, repeatedly selecting the minimum element from the unsorted region and swapping it into place.',
+        code: [
+          'def selection_sort(arr):',
+          '    n = len(arr)',
+          '    for i in range(n - 1):',
+          '        min_idx = i',
+          '        for j in range(i + 1, n):',
+          '            if arr[j] < arr[min_idx]:',
+          '                min_idx = j',
+          '        if min_idx != i:',
+          '            arr[i], arr[min_idx] = arr[min_idx], arr[i]',
+          '    return arr'
+        ]
+      },
+      bubble: {
+        id: 'bubble',
+        name: 'Bubble Sort',
+        category: 'comparison',
+        stable: true,
+        best: 'O(n)',
+        avg: 'O(n²)',
+        worst: 'O(n²)',
+        space: 'O(1)',
+        filename: 'bubble_sort.py',
+        description: 'Repeatedly steps through the list, compares adjacent elements, and swaps them if they are in the wrong order until no swaps occur.',
+        code: [
+          'def bubble_sort(arr):',
+          '    n = len(arr)',
+          '    for i in range(n - 1):',
+          '        swapped = False',
+          '        for j in range(n - i - 1):',
+          '            if arr[j] > arr[j + 1]:',
+          '                arr[j], arr[j + 1] = arr[j + 1], arr[j]',
+          '                swapped = True',
+          '        if not swapped:',
+          '            break',
+          '    return arr'
+        ]
+      },
+      insertion: {
+        id: 'insertion',
+        name: 'Insertion Sort',
+        category: 'comparison',
+        stable: true,
+        best: 'O(n)',
+        avg: 'O(n²)',
+        worst: 'O(n²)',
+        space: 'O(1)',
+        filename: 'insertion_sort.py',
+        description: 'Builds the sorted list one item at a time by taking each element (key) and shifting larger sorted elements right to insert it into position.',
+        code: [
+          'def insertion_sort(arr):',
+          '    for i in range(1, len(arr)):',
+          '        key = arr[i]',
+          '        j = i - 1',
+          '        while j >= 0 and arr[j] > key:',
+          '            arr[j + 1] = arr[j]',
+          '            j -= 1',
+          '        arr[j + 1] = key',
+          '    return arr'
+        ]
+      },
+      merge: {
+        id: 'merge',
+        name: 'Merge Sort',
+        category: 'comparison',
+        stable: true,
+        best: 'O(n log n)',
+        avg: 'O(n log n)',
+        worst: 'O(n log n)',
+        space: 'O(n)',
+        filename: 'merge_sort.py',
+        description: 'Divide-and-conquer algorithm that recursively splits the list into halves, sorts each half, and merges the two sorted slices back together.',
+        code: [
+          'def merge_sort(arr, left=0, right=None):',
+          '    if right is None:',
+          '        right = len(arr) - 1',
+          '    if left >= right:',
+          '        return',
+          '    mid = (left + right) // 2',
+          '    merge_sort(arr, left, mid)',
+          '    merge_sort(arr, mid + 1, right)',
+          '    merge(arr, left, mid, right)',
+          '',
+          'def merge(arr, left, mid, right):',
+          '    L = arr[left:mid + 1]',
+          '    R = arr[mid + 1:right + 1]',
+          '    i = j = 0',
+          '    k = left',
+          '    while i < len(L) and j < len(R):',
+          '        if L[i] <= R[j]:',
+          '            arr[k] = L[i]',
+          '            i += 1',
+          '        else:',
+          '            arr[k] = R[j]',
+          '            j += 1',
+          '        k += 1',
+          '    while i < len(L):',
+          '        arr[k] = L[i]',
+          '        i += 1; k += 1',
+          '    while j < len(R):',
+          '        arr[k] = R[j]',
+          '        j += 1; k += 1'
+        ]
+      },
+      quick: {
+        id: 'quick',
+        name: 'Quick Sort',
+        category: 'comparison',
+        stable: false,
+        best: 'O(n log n)',
+        avg: 'O(n log n)',
+        worst: 'O(n²)',
+        space: 'O(log n)',
+        filename: 'quick_sort.py',
+        description: 'Picks a pivot element (Lomuto partition) and partitions the list so elements smaller than or equal to the pivot move left and larger move right.',
+        code: [
+          'def quick_sort(arr, low=0, high=None):',
+          '    if high is None:',
+          '        high = len(arr) - 1',
+          '    if low < high:',
+          '        p = partition(arr, low, high)',
+          '        quick_sort(arr, low, p - 1)',
+          '        quick_sort(arr, p + 1, high)',
+          '',
+          'def partition(arr, low, high):',
+          '    pivot = arr[high]',
+          '    i = low - 1',
+          '    for j in range(low, high):',
+          '        if arr[j] <= pivot:',
+          '            i += 1',
+          '            arr[i], arr[j] = arr[j], arr[i]',
+          '    arr[i + 1], arr[high] = arr[high], arr[i + 1]',
+          '    return i + 1'
+        ]
+      },
+      heap: {
+        id: 'heap',
+        name: 'Heap Sort',
+        category: 'comparison',
+        stable: false,
+        best: 'O(n log n)',
+        avg: 'O(n log n)',
+        worst: 'O(n log n)',
+        space: 'O(1)',
+        filename: 'heap_sort.py',
+        description: 'Builds a Max-Heap from the input list, then repeatedly extracts the maximum root element by swapping it to the end and restoring heap order.',
+        code: [
+          'def heap_sort(arr):',
+          '    n = len(arr)',
+          '    for i in range(n // 2 - 1, -1, -1):',
+          '        heapify(arr, n, i)',
+          '    for i in range(n - 1, 0, -1):',
+          '        arr[0], arr[i] = arr[i], arr[0]',
+          '        heapify(arr, i, 0)',
+          '    return arr',
+          '',
+          'def heapify(arr, n, i):',
+          '    largest = i',
+          '    left = 2 * i + 1',
+          '    right = 2 * i + 2',
+          '    if left < n and arr[left] > arr[largest]:',
+          '        largest = left',
+          '    if right < n and arr[right] > arr[largest]:',
+          '        largest = right',
+          '    if largest != i:',
+          '        arr[i], arr[largest] = arr[largest], arr[i]',
+          '        heapify(arr, n, largest)'
+        ]
+      },
+      counting: {
+        id: 'counting',
+        name: 'Counting Sort',
+        category: 'noncomparison',
+        stable: true,
+        best: 'O(n + k)',
+        avg: 'O(n + k)',
+        worst: 'O(n + k)',
+        space: 'O(n + k)',
+        filename: 'counting_sort.py',
+        description: 'Non-comparison integer sort that counts occurrences in a frequency list, computes cumulative prefix sums, and places elements stably into output.',
+        code: [
+          'def counting_sort(arr):',
+          '    if not arr:',
+          '        return arr',
+          '    max_val = max(arr)',
+          '    count = [0] * (max_val + 1)',
+          '    output = [0] * len(arr)',
+          '    for num in arr:',
+          '        count[num] += 1',
+          '    for i in range(1, max_val + 1):',
+          '        count[i] += count[i - 1]',
+          '    for i in range(len(arr) - 1, -1, -1):',
+          '        val = arr[i]',
+          '        output[count[val] - 1] = val',
+          '        count[val] -= 1',
+          '    arr[:] = output',
+          '    return arr'
+        ]
+      },
+      radix: {
+        id: 'radix',
+        name: 'Radix Sort',
+        category: 'noncomparison',
+        stable: true,
+        best: 'O(d·(n + k))',
+        avg: 'O(d·(n + k))',
+        worst: 'O(d·(n + k))',
+        space: 'O(n + k)',
+        filename: 'radix_sort.py',
+        description: 'Sorts integers digit by digit starting from the Least Significant Digit (1s, 10s, 100s...) using stable digit counting sort passes.',
+        code: [
+          'def radix_sort(arr):',
+          '    if not arr:',
+          '        return arr',
+          '    max_val = max(arr)',
+          '    exp = 1',
+          '    while max_val // exp > 0:',
+          '        counting_by_digit(arr, exp)',
+          '        exp *= 10',
+          '    return arr',
+          '',
+          'def counting_by_digit(arr, exp):',
+          '    n = len(arr)',
+          '    output = [0] * n',
+          '    count = [0] * 10',
+          '    for num in arr:',
+          '        digit = (num // exp) % 10',
+          '        count[digit] += 1',
+          '    for i in range(1, 10):',
+          '        count[i] += count[i - 1]',
+          '    for i in range(n - 1, -1, -1):',
+          '        digit = (arr[i] // exp) % 10',
+          '        output[count[digit] - 1] = arr[i]',
+          '        count[digit] -= 1',
+          '    arr[:] = output'
+        ]
+      },
+      bucket: {
+        id: 'bucket',
+        name: 'Bucket Sort',
+        category: 'noncomparison',
+        stable: true,
+        best: 'O(n + k)',
+        avg: 'O(n + k)',
+        worst: 'O(n²)',
+        space: 'O(n + k)',
+        filename: 'bucket_sort.py',
+        description: 'Distributes elements across k uniform value buckets using span = (max_val - min_val + 1) / k, sorts each bucket, and concatenates them back.',
+        code: [
+          'def bucket_sort(arr):',
+          '    if len(arr) <= 1:',
+          '        return arr',
+          '    min_val, max_val = min(arr), max(arr)',
+          '    if min_val == max_val:',
+          '        return arr',
+          '    k = len(arr)',
+          '    buckets = [[] for _ in range(k)]',
+          '    span = (max_val - min_val + 1) / k',
+          '    for num in arr:',
+          '        idx = int((num - min_val) / span)',
+          '        buckets[idx].append(num)',
+          '    pos = 0',
+          '    for b in buckets:',
+          '        b.sort()',
+          '        for val in b:',
+          '            arr[pos] = val',
+          '            pos += 1',
+          '    return arr'
+        ]
+      }
+    };
+
+    // =========================================================================
+    // 2. APPLICATION STATE
+    // =========================================================================
+    let state = {
+      category: 'comparison',
+      algoId: 'selection',
+      baseArray: [29, 10, 14, 37, 14, 5, 22, 18],
+      steps: [],
+      currentStep: 0,
+      isPlaying: false,
+      timerId: null,
+      speedMs: 550
+    };
+
+    // =========================================================================
+    // 3. STEP TRACE GENERATORS FOR ALL 9 ALGORITHMS (1-BASED PYTHON LINE NUMBERS)
+    // =========================================================================
+    function generateSteps(algoId, inputArr) {
+      const arr = [...inputArr];
+      const steps = [];
+      let comparisons = 0;
+      let writes = 0;
+
+      // line is 1-based Python line number matching ALGORITHMS[algoId].code
+      const pushStep = ({
+        line,
+        comparing = [],
+        swapping = [],
+        pivot = [],
+        sorted = [],
+        vars = {},
+        explanation = '',
+        aux = null
+      }) => {
+        steps.push({
+          array: [...arr],
+          line,
+          comparing: [...comparing],
+          swapping: [...swapping],
+          pivot: [...pivot],
+          sorted: [...sorted],
+          vars: JSON.parse(JSON.stringify(vars)),
+          explanation,
+          comparisons,
+          writes,
+          aux: aux ? JSON.parse(JSON.stringify(aux)) : null
+        });
+      };
+
+      // --- 1. SELECTION SORT (Lines 1..10) ---
+      if (algoId === 'selection') {
+        const n = arr.length;
+        const sorted = [];
+        pushStep({ line: 2, vars: { n }, explanation: `Line 2: n = len(arr) = ${n}.` });
+        for (let i = 0; i < n - 1; i++) {
+          let minIdx = i;
+          pushStep({ line: 4, pivot: [minIdx], sorted, vars: { n, i, min_idx: minIdx, 'arr[min_idx]': arr[minIdx] }, explanation: `Line 4: Outer pass i = ${i}, initialized min_idx = ${i} (${arr[i]}).` });
+          for (let j = i + 1; j < n; j++) {
+            comparisons++;
+            pushStep({ line: 6, comparing: [j], pivot: [minIdx], sorted, vars: { i, j, min_idx: minIdx, 'arr[j]': arr[j], 'arr[min_idx]': arr[minIdx] }, explanation: `Line 6: Comparing arr[${j}] (${arr[j]}) < arr[${minIdx}] (${arr[minIdx]}).` });
+            if (arr[j] < arr[minIdx]) {
+              minIdx = j;
+              pushStep({ line: 7, pivot: [minIdx], sorted, vars: { i, j, min_idx: minIdx, 'arr[min_idx]': arr[minIdx] }, explanation: `Line 7: Found smaller element! Updated min_idx = ${minIdx} (${arr[minIdx]}).` });
+            }
+          }
+          if (minIdx !== i) {
+            [arr[i], arr[minIdx]] = [arr[minIdx], arr[i]];
+            writes++;
+            pushStep({ line: 9, swapping: [i, minIdx], sorted, vars: { i, min_idx: minIdx }, explanation: `Line 9: Swapped arr[${i}] and arr[${minIdx}] (${arr[i]} ↔ ${arr[minIdx]}).` });
+          } else {
+            pushStep({ line: 8, pivot: [i], sorted, vars: { i, min_idx: minIdx }, explanation: `Line 8: min_idx == i (${i}), no swap needed.` });
+          }
+          sorted.push(i);
+        }
+        if (n > 0) sorted.push(n - 1);
+        pushStep({ line: 10, sorted, vars: { status: 'Returned arr' }, explanation: `Line 10: Selection Sort complete! Returning sorted arr.` });
+      }
+
+      // --- 2. BUBBLE SORT (Lines 1..11) ---
+      else if (algoId === 'bubble') {
+        const n = arr.length;
+        const sorted = [];
+        pushStep({ line: 2, vars: { n }, explanation: `Line 2: n = len(arr) = ${n}.` });
+        for (let i = 0; i < n - 1; i++) {
+          let swapped = false;
+          pushStep({ line: 4, sorted, vars: { n, i, swapped: 'False' }, explanation: `Line 4: Pass i = ${i}, initialized swapped = False.` });
+          for (let j = 0; j < n - i - 1; j++) {
+            comparisons++;
+            pushStep({ line: 6, comparing: [j, j + 1], sorted, vars: { i, j, 'j + 1': j + 1, 'arr[j]': arr[j], 'arr[j+1]': arr[j + 1], swapped: swapped ? 'True' : 'False' }, explanation: `Line 6: Comparing arr[${j}] (${arr[j]}) > arr[${j + 1}] (${arr[j + 1]}).` });
+            if (arr[j] > arr[j + 1]) {
+              [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+              swapped = true;
+              writes++;
+              pushStep({ line: 7, swapping: [j, j + 1], sorted, vars: { i, j, 'j + 1': j + 1, swapped: 'True' }, explanation: `Line 7–8: Swapped arr[${j}] and arr[${j + 1}], set swapped = True.` });
+            }
+          }
+          sorted.push(n - 1 - i);
+          if (!swapped) {
+            for (let k = 0; k < n; k++) if (!sorted.includes(k)) sorted.push(k);
+            pushStep({ line: 10, sorted, vars: { i, swapped: 'False' }, explanation: `Line 9–10: not swapped is True — breaking early!` });
+            break;
+          }
+        }
+        const allSorted = Array.from({ length: n }, (_, idx) => idx);
+        pushStep({ line: 11, sorted: allSorted, vars: { status: 'Returned arr' }, explanation: `Line 11: Bubble Sort complete! Returning sorted arr.` });
+      }
+
+      // --- 3. INSERTION SORT (Lines 1..9) ---
+      else if (algoId === 'insertion') {
+        const n = arr.length;
+        pushStep({ line: 2, sorted: n > 0 ? [0] : [], vars: { n }, explanation: `Line 2: Index 0 (${arr[0]}) is initially sorted; iterating i from 1 to ${n - 1}.` });
+        for (let i = 1; i < n; i++) {
+          let key = arr[i];
+          let j = i - 1;
+          const sortedPrefix = Array.from({ length: i }, (_, idx) => idx);
+          pushStep({ line: 3, pivot: [i], sorted: sortedPrefix, vars: { i, key, j }, explanation: `Line 3–4: Stored key = arr[${i}] (${key}) and set j = ${j}.` });
+          while (j >= 0 && arr[j] > key) {
+            comparisons++;
+            pushStep({ line: 5, comparing: [j], pivot: [j + 1], sorted: sortedPrefix, vars: { i, key, j, 'arr[j]': arr[j] }, explanation: `Line 5: j >= 0 and arr[${j}] (${arr[j]}) > key (${key}) is True.` });
+            arr[j + 1] = arr[j];
+            writes++;
+            pushStep({ line: 6, swapping: [j + 1], sorted: sortedPrefix, vars: { i, key, j }, explanation: `Line 6: Shifted arr[${j + 1}] = arr[${j}] (${arr[j + 1]}).` });
+            j = j - 1;
+            pushStep({ line: 7, pivot: [j + 1], sorted: sortedPrefix, vars: { i, key, j }, explanation: `Line 7: Decremented j to ${j}.` });
+          }
+          if (j >= 0) comparisons++;
+          arr[j + 1] = key;
+          writes++;
+          const newSorted = Array.from({ length: i + 1 }, (_, idx) => idx);
+          pushStep({ line: 8, swapping: [j + 1], sorted: newSorted, vars: { i, key, 'j + 1': j + 1 }, explanation: `Line 8: Inserted key (${key}) at arr[${j + 1}].` });
+        }
+        const allSorted = Array.from({ length: n }, (_, idx) => idx);
+        pushStep({ line: 9, sorted: allSorted, vars: { status: 'Returned arr' }, explanation: `Line 9: Insertion Sort complete! Returning sorted arr.` });
+      }
+
+      // --- 4. MERGE SORT (Lines 1..29) ---
+      else if (algoId === 'merge') {
+        const n = arr.length;
+        pushStep({ line: 3, vars: { left: 0, right: n - 1 }, explanation: `Line 3: Initialized right = len(arr) - 1 = ${n - 1}.` });
+
+        function mergeSortRec(left, right) {
+          if (left >= right) {
+            pushStep({ line: 5, sorted: left === right ? [left] : [], vars: { left, right }, explanation: `Line 4–5: Base case left (${left}) >= right (${right}), returning.` });
+            return;
+          }
+          const mid = Math.floor((left + right) / 2);
+          const rangeIndices = Array.from({ length: right - left + 1 }, (_, idx) => left + idx);
+          pushStep({ line: 6, pivot: [mid], comparing: rangeIndices, vars: { left, mid, right }, explanation: `Line 6: Computed mid = (${left} + ${right}) // 2 = ${mid}.` });
+          mergeSortRec(left, mid);
+          mergeSortRec(mid + 1, right);
+
+          // Merge phase (Lines 11..29)
+          const L = arr.slice(left, mid + 1);
+          const R = arr.slice(mid + 1, right + 1);
+          let i = 0, j = 0, k = left;
+          pushStep({
+            line: 12,
+            comparing: rangeIndices,
+            vars: { left, mid, right, i, j, k },
+            aux: { type: 'merge', left: L, right: R, label: `Slices L = arr[${left}:${mid + 1}], R = arr[${mid + 1}:${right + 1}]` },
+            explanation: `Line 12–15: Created L=[${L.join(', ')}], R=[${R.join(', ')}], i=0, j=0, k=${left}.`
+          });
+
+          while (i < L.length && j < R.length) {
+            comparisons++;
+            pushStep({
+              line: 17,
+              comparing: [k],
+              vars: { i, j, k, 'L[i]': L[i], 'R[j]': R[j] },
+              aux: { type: 'merge', left: L.slice(i), right: R.slice(j), label: `Comparing L[${i}] vs R[${j}]` },
+              explanation: `Line 17: Comparing L[${i}] (${L[i]}) <= R[${j}] (${R[j]}).`
+            });
+            if (L[i] <= R[j]) {
+              arr[k] = L[i];
+              writes++;
+              pushStep({
+                line: 18,
+                swapping: [k],
+                vars: { i: i + 1, j, k: k + 1, placed: L[i] },
+                aux: { type: 'merge', left: L.slice(i + 1), right: R.slice(j), label: `Merge Slice Buffers` },
+                explanation: `Line 18–19: Assigned arr[${k}] = L[${i}] (${L[i]}), incremented i and k.`
+              });
+              i++;
+            } else {
+              arr[k] = R[j];
+              writes++;
+              pushStep({
+                line: 21,
+                swapping: [k],
+                vars: { i, j: j + 1, k: k + 1, placed: R[j] },
+                aux: { type: 'merge', left: L.slice(i), right: R.slice(j + 1), label: `Merge Slice Buffers` },
+                explanation: `Line 21–22: Assigned arr[${k}] = R[${j}] (${R[j]}), incremented j and k.`
+              });
+              j++;
+            }
+            k++;
+          }
+          while (i < L.length) {
+            arr[k] = L[i];
+            writes++;
+            pushStep({
+              line: 25,
+              swapping: [k],
+              vars: { i: i + 1, k: k + 1, val: L[i] },
+              aux: { type: 'merge', left: L.slice(i + 1), right: [], label: `Flushing Remaining L` },
+              explanation: `Line 25–26: Copied remaining L[${i}] (${L[i]}) into arr[${k}].`
+            });
+            i++; k++;
+          }
+          while (j < R.length) {
+            arr[k] = R[j];
+            writes++;
+            pushStep({
+              line: 28,
+              swapping: [k],
+              vars: { j: j + 1, k: k + 1, val: R[j] },
+              aux: { type: 'merge', left: [], right: R.slice(j + 1), label: `Flushing Remaining R` },
+              explanation: `Line 28–29: Copied remaining R[${j}] (${R[j]}) into arr[${k}].`
+            });
+            j++; k++;
+          }
+        }
+
+        mergeSortRec(0, n - 1);
+        const allSorted = Array.from({ length: n }, (_, idx) => idx);
+        pushStep({ line: 9, sorted: allSorted, vars: { status: 'Complete' }, explanation: `Merge Sort complete! All slices merged in ascending order.` });
+      }
+
+      // --- 5. QUICK SORT (Lines 1..17) ---
+      else if (algoId === 'quick') {
+        const n = arr.length;
+        const sorted = [];
+        pushStep({ line: 3, vars: { low: 0, high: n - 1 }, explanation: `Line 3: Initialized high = len(arr) - 1 = ${n - 1}.` });
+
+        function quickSortRec(low, high) {
+          if (low < high) {
+            const pivotVal = arr[high];
+            let i = low - 1;
+            pushStep({ line: 10, pivot: [high], sorted, vars: { low, high, pivot: pivotVal, i }, explanation: `Line 10–11: Partitioning [${low}..${high}] with pivot = arr[${high}] (${pivotVal}), i = ${i}.` });
+
+            for (let j = low; j < high; j++) {
+              comparisons++;
+              pushStep({ line: 13, comparing: [j], pivot: [high], sorted, vars: { low, high, pivot: pivotVal, i, j, 'arr[j]': arr[j] }, explanation: `Line 13: Checking if arr[${j}] (${arr[j]}) <= pivot (${pivotVal}).` });
+              if (arr[j] <= pivotVal) {
+                i++;
+                if (i !== j) {
+                  [arr[i], arr[j]] = [arr[j], arr[i]];
+                  writes++;
+                  pushStep({ line: 15, swapping: [i, j], pivot: [high], sorted, vars: { i, j, pivot: pivotVal }, explanation: `Line 14–15: Incremented i = ${i} and swapped arr[${i}] with arr[${j}].` });
+                } else {
+                  pushStep({ line: 14, comparing: [i], pivot: [high], sorted, vars: { i, j, pivot: pivotVal }, explanation: `Line 14: Incremented i = ${i} (arr[${j}] already in left partition).` });
+                }
+              }
+            }
+            [arr[i + 1], arr[high]] = [arr[high], arr[i + 1]];
+            writes++;
+            const p = i + 1;
+            sorted.push(p);
+            pushStep({ line: 16, swapping: [p, high], sorted, vars: { p, pivot: arr[p] }, explanation: `Line 16–17: Swapped pivot into final position p = ${p} (${arr[p]}).` });
+
+            quickSortRec(low, p - 1);
+            quickSortRec(p + 1, high);
+          } else if (low === high && !sorted.includes(low)) {
+            sorted.push(low);
+            pushStep({ line: 4, sorted, vars: { index: low }, explanation: `Line 4: Single-element slice at index ${low} (${arr[low]}) is already sorted.` });
+          }
+        }
+
+        quickSortRec(0, n - 1);
+        const allSorted = Array.from({ length: n }, (_, idx) => idx);
+        pushStep({ line: 7, sorted: allSorted, vars: { status: 'Complete' }, explanation: `Quick Sort complete! All elements partitioned into place.` });
+      }
+
+      // --- 6. HEAP SORT (Lines 1..20) ---
+      else if (algoId === 'heap') {
+        const n = arr.length;
+        const sorted = [];
+        pushStep({ line: 2, vars: { n }, explanation: `Line 2: n = len(arr) = ${n}. Building Max-Heap.` });
+
+        function heapify(heapSize, i) {
+          let largest = i;
+          const l = 2 * i + 1;
+          const r = 2 * i + 2;
+          const children = [];
+          if (l < heapSize) children.push(l);
+          if (r < heapSize) children.push(r);
+
+          pushStep({ line: 11, pivot: [i], comparing: children, sorted, vars: { n: heapSize, i, largest, left: l, right: r }, explanation: `Line 11–13: heapify(n=${heapSize}, i=${i}): largest=${i}, left=${l}, right=${r}.` });
+
+          if (l < heapSize) {
+            comparisons++;
+            if (arr[l] > arr[largest]) {
+              largest = l;
+              pushStep({ line: 15, comparing: [l], pivot: [i], sorted, vars: { n: heapSize, i, left: l, largest }, explanation: `Line 14–15: arr[${l}] (${arr[l]}) > arr[${i}] (${arr[i]}), updated largest = ${largest}.` });
+            }
+          }
+          if (r < heapSize) {
+            comparisons++;
+            if (arr[r] > arr[largest]) {
+              largest = r;
+              pushStep({ line: 17, comparing: [r], pivot: [i], sorted, vars: { n: heapSize, i, right: r, largest }, explanation: `Line 16–17: arr[${r}] (${arr[r]}) > current largest, updated largest = ${largest}.` });
+            }
+          }
+
+          if (largest !== i) {
+            [arr[i], arr[largest]] = [arr[largest], arr[i]];
+            writes++;
+            pushStep({ line: 19, swapping: [i, largest], sorted, vars: { n: heapSize, i, largest }, explanation: `Line 19: Swapped arr[${i}] and arr[${largest}] (${arr[i]} ↔ ${arr[largest]}).` });
+            heapify(heapSize, largest);
+          }
+        }
+
+        for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+          heapify(n, i);
+        }
+        pushStep({ line: 4, pivot: [0], sorted, vars: { max_root: arr[0] }, explanation: `Line 4: Max-Heap constructed! Root arr[0] = ${arr[0]}.` });
+
+        for (let i = n - 1; i > 0; i--) {
+          [arr[0], arr[i]] = [arr[i], arr[0]];
+          writes++;
+          sorted.push(i);
+          pushStep({ line: 6, swapping: [0, i], sorted, vars: { i, extracted_max: arr[i] }, explanation: `Line 6: Extracted max root (${arr[i]}) to arr[${i}].` });
+          heapify(i, 0);
+        }
+        if (n > 0) sorted.push(0);
+        const allSorted = Array.from({ length: n }, (_, idx) => idx);
+        pushStep({ line: 8, sorted: allSorted, vars: { status: 'Returned arr' }, explanation: `Line 8: Heap Sort complete! Returning sorted arr.` });
+      }
+
+      // --- 7. COUNTING SORT (Lines 1..16) ---
+      else if (algoId === 'counting') {
+        const n = arr.length;
+        if (n === 0) {
+          pushStep({ line: 3, vars: { arr: '[]' }, explanation: `Line 2–3: Empty list, returning immediately.` });
+          return steps;
+        }
+        const maxVal = Math.max(...arr);
+        const count = new Array(maxVal + 1).fill(0);
+        const output = new Array(n).fill(0);
+        pushStep({
+          line: 5,
+          vars: { n, max_val: maxVal },
+          aux: { type: 'count', array: count, label: `count = [0] * ${maxVal + 1}` },
+          explanation: `Line 4–6: max_val = ${maxVal}, initialized count (${maxVal + 1} zeros) and output (${n} zeros).`
+        });
+
+        for (let i = 0; i < n; i++) {
+          count[arr[i]]++;
+          writes++;
+          pushStep({
+            line: 8,
+            comparing: [i],
+            vars: { num: arr[i], 'count[num]': count[arr[i]] },
+            aux: { type: 'count', array: count, highlight: arr[i], label: `Frequency Count Array` },
+            explanation: `Line 7–8: num = ${arr[i]} → incremented count[${arr[i]}] to ${count[arr[i]]}.`
+          });
+        }
+
+        for (let i = 1; i <= maxVal; i++) {
+          count[i] += count[i - 1];
+          pushStep({
+            line: 10,
+            vars: { i, 'count[i]': count[i] },
+            aux: { type: 'count', array: count, highlight: i, label: `Cumulative Prefix Sums` },
+            explanation: `Line 9–10: Prefix sum count[${i}] += count[${i - 1}] → ${count[i]}.`
+          });
+        }
+
+        const displayOutput = new Array(n).fill(null);
+        for (let i = n - 1; i >= 0; i--) {
+          const val = arr[i];
+          const pos = count[val] - 1;
+          output[pos] = val;
+          displayOutput[pos] = val;
+          count[val]--;
+          writes++;
+          pushStep({
+            line: 13,
+            pivot: [i],
+            vars: { i, val, 'count[val] - 1': pos },
+            aux: { type: 'count_output', count, output: displayOutput, highlight: pos, label: `Stable Output Placement` },
+            explanation: `Line 12–14: val = arr[${i}] (${val}), placed at output[${pos}] and decremented count[${val}].`
+          });
+        }
+
+        for (let i = 0; i < n; i++) {
+          arr[i] = output[i];
+          writes++;
+        }
+        const allSorted = Array.from({ length: n }, (_, idx) => idx);
+        pushStep({ line: 16, sorted: allSorted, vars: { status: 'Returned arr' }, explanation: `Line 15–16: Copied arr[:] = output and returned sorted arr.` });
+      }
+
+      // --- 8. RADIX SORT (Lines 1..24) ---
+      else if (algoId === 'radix') {
+        const n = arr.length;
+        if (n === 0) {
+          pushStep({ line: 3, vars: { arr: '[]' }, explanation: `Line 2–3: Empty list, returning immediately.` });
+          return steps;
+        }
+        const maxVal = Math.max(...arr);
+        pushStep({ line: 5, vars: { n, max_val: maxVal, exp: 1 }, explanation: `Line 4–5: max_val = ${maxVal}, starting with exp = 1.` });
+
+        for (let exp = 1; Math.floor(maxVal / exp) > 0; exp *= 10) {
+          const output = new Array(n).fill(0);
+          const displayOutput = new Array(n).fill(null);
+          const count = new Array(10).fill(0);
+          const placeName = exp === 1 ? '1s (Units)' : exp === 10 ? '10s (Tens)' : exp === 100 ? '100s (Hundreds)' : `${exp}s`;
+
+          pushStep({
+            line: 14,
+            vars: { exp, place: placeName },
+            aux: { type: 'count', array: count, label: `${placeName} Pass (exp=${exp}): count = [0] * 10` },
+            explanation: `Line 12–14: counting_by_digit(arr, exp=${exp}) initialized count = [0] * 10.`
+          });
+
+          for (let i = 0; i < n; i++) {
+            const digit = Math.floor(arr[i] / exp) % 10;
+            count[digit]++;
+            pushStep({
+              line: 17,
+              comparing: [i],
+              vars: { exp, num: arr[i], digit, 'count[digit]': count[digit] },
+              aux: { type: 'count', array: count, highlight: digit, label: `Digit Frequency (exp=${exp})` },
+              explanation: `Line 16–17: digit = (${arr[i]} // ${exp}) % 10 = ${digit}, count[${digit}] = ${count[digit]}.`
+            });
+          }
+
+          for (let i = 1; i < 10; i++) {
+            count[i] += count[i - 1];
+            pushStep({
+              line: 19,
+              vars: { exp, i, 'count[i]': count[i] },
+              aux: { type: 'count', array: count, highlight: i, label: `Digit Prefix Sums (exp=${exp})` },
+              explanation: `Line 18–19: Prefix sum count[${i}] += count[${i - 1}] → ${count[i]}.`
+            });
+          }
+
+          for (let i = n - 1; i >= 0; i--) {
+            const digit = Math.floor(arr[i] / exp) % 10;
+            const pos = count[digit] - 1;
+            output[pos] = arr[i];
+            displayOutput[pos] = arr[i];
+            count[digit]--;
+            writes++;
+            pushStep({
+              line: 22,
+              pivot: [i],
+              vars: { exp, i, 'arr[i]': arr[i], digit, target_pos: pos },
+              aux: { type: 'count_output', count, output: displayOutput, highlight: pos, label: `Digit Output Array (exp=${exp})` },
+              explanation: `Line 21–23: Placed arr[${i}] (${arr[i]}) at output[${pos}] for digit ${digit}.`
+            });
+          }
+
+          for (let i = 0; i < n; i++) {
+            arr[i] = output[i];
+            writes++;
+          }
+          pushStep({
+            line: 24,
+            vars: { exp, next_exp: exp * 10 },
+            aux: { type: 'count_output', count, output: displayOutput, label: `Updated arr[:] after exp=${exp}` },
+            explanation: `Line 24: Copied arr[:] = output for ${placeName} pass.`
+          });
+        }
+
+        const allSorted = Array.from({ length: n }, (_, idx) => idx);
+        pushStep({ line: 9, sorted: allSorted, vars: { status: 'Returned arr' }, explanation: `Line 9: Radix Sort complete! Returning sorted arr.` });
+      }
+
+      // --- 9. BUCKET SORT (Lines 1..19) ---
+      else if (algoId === 'bucket') {
+        const n = arr.length;
+        if (n <= 1) {
+          pushStep({ line: 3, sorted: n === 1 ? [0] : [], vars: { n }, explanation: `Line 2–3: len(arr) <= 1, returning arr.` });
+          return steps;
+        }
+        const minVal = Math.min(...arr);
+        const maxVal = Math.max(...arr);
+        if (minVal === maxVal) {
+          const allSorted = Array.from({ length: n }, (_, idx) => idx);
+          pushStep({ line: 6, sorted: allSorted, vars: { min_val: minVal, max_val: maxVal }, explanation: `Line 5–6: All elements equal (${minVal}), returning arr.` });
+          return steps;
+        }
+
+        const k = n;
+        const buckets = Array.from({ length: k }, () => []);
+        const span = (maxVal - minVal + 1) / k;
+        pushStep({
+          line: 9,
+          vars: { min_val: minVal, max_val: maxVal, k, span: span.toFixed(2) },
+          aux: { type: 'buckets', buckets, label: `Created k = ${k} Buckets (span = ${span.toFixed(2)})` },
+          explanation: `Line 7–9: k = ${k}, span = (${maxVal} - ${minVal} + 1) / ${k} = ${span.toFixed(2)}.`
+        });
+
+        for (let i = 0; i < n; i++) {
+          const idx = Math.floor((arr[i] - minVal) / span);
+          buckets[idx].push(arr[i]);
+          pushStep({
+            line: 12,
+            comparing: [i],
+            vars: { num: arr[i], idx, span: span.toFixed(2) },
+            aux: { type: 'buckets', buckets, activeBucket: idx, label: `Scattering into Buckets[0..${k - 1}]` },
+            explanation: `Line 11–12: idx = int((${arr[i]} - ${minVal}) / ${span.toFixed(2)}) = ${idx} → appended ${arr[i]} to buckets[${idx}].`
+          });
+        }
+
+        let pos = 0;
+        const sorted = [];
+        for (let bIdx = 0; bIdx < k; bIdx++) {
+          if (buckets[bIdx].length > 1) {
+            buckets[bIdx].sort((a, c) => a - c);
+            pushStep({
+              line: 15,
+              sorted,
+              vars: { bucket: bIdx, sorted_b: `[${buckets[bIdx].join(', ')}]` },
+              aux: { type: 'buckets', buckets, activeBucket: bIdx, label: `Sorting Bucket[${bIdx}]` },
+              explanation: `Line 15: Sorted buckets[${bIdx}] → [${buckets[bIdx].join(', ')}].`
+            });
+          }
+          for (const val of buckets[bIdx]) {
+            arr[pos] = val;
+            writes++;
+            sorted.push(pos);
+            pushStep({
+              line: 17,
+              swapping: [pos],
+              sorted,
+              vars: { bucket: bIdx, val, pos },
+              aux: { type: 'buckets', buckets, activeBucket: bIdx, label: `Concatenating Sorted Buckets` },
+              explanation: `Line 17–18: Wrote arr[${pos}] = ${val} from buckets[${bIdx}], incremented pos = ${pos + 1}.`
+            });
+            pos++;
+          }
+        }
+
+        const allSorted = Array.from({ length: n }, (_, idx) => idx);
+        pushStep({ line: 19, sorted: allSorted, vars: { status: 'Returned arr' }, explanation: `Line 19: Bucket Sort complete! Returning sorted arr.` });
+      }
+
+      return steps;
+    }
+
+    // =========================================================================
+    // 4. UI RENDERING & STATE SYNCHRONIZATION
+    // =========================================================================
+    function renderAlgorithmButtons() {
+      const container = document.getElementById('algo-buttons');
+      container.innerHTML = '';
+      Object.values(ALGORITHMS)
+        .filter(a => a.category === state.category)
+        .forEach(algo => {
+          const isActive = algo.id === state.algoId;
+          const btn = document.createElement('button');
+          btn.textContent = algo.name;
+          btn.onclick = () => selectAlgorithm(algo.id);
+          btn.className = isActive
+            ? 'px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white shadow-sm shadow-indigo-500/25 transition'
+            : 'px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition';
+          container.appendChild(btn);
+        });
+    }
+
+    function setCategory(cat) {
+      state.category = cat;
+      const tabComp = document.getElementById('tab-comparison');
+      const tabNon = document.getElementById('tab-noncomparison');
+
+      if (cat === 'comparison') {
+        tabComp.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm';
+        tabNon.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+        if (ALGORITHMS[state.algoId].category !== 'comparison') {
+          selectAlgorithm('selection');
+          return;
+        }
+      } else {
+        tabNon.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm';
+        tabComp.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+        if (ALGORITHMS[state.algoId].category !== 'noncomparison') {
+          selectAlgorithm('counting');
+          return;
+        }
+      }
+      renderAlgorithmButtons();
+    }
+
+    function selectAlgorithm(algoId) {
+      pausePlayback();
+      state.algoId = algoId;
+      const algo = ALGORITHMS[algoId];
+
+      // Update Metadata Card
+      document.getElementById('algo-title').textContent = algo.name;
+      document.getElementById('algo-category-badge').textContent = algo.category === 'comparison' ? 'Comparison-Based' : 'Non-Comparison';
+      const stableBadge = document.getElementById('algo-stable-badge');
+      stableBadge.textContent = algo.stable ? 'Stable' : 'Unstable';
+      stableBadge.className = algo.stable
+        ? 'px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+        : 'px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20';
+
+      document.getElementById('algo-desc').textContent = algo.description;
+      document.getElementById('comp-best').textContent = algo.best;
+      document.getElementById('comp-avg').textContent = algo.avg;
+      document.getElementById('comp-worst').textContent = algo.worst;
+      document.getElementById('comp-space').textContent = algo.space;
+      document.getElementById('code-filename').textContent = algo.filename;
+
+      // Render Code Lines
+      renderCodePanel(algo.code);
+      renderAlgorithmButtons();
+      rebuildSimulation();
+    }
+
+    function renderCodePanel(lines) {
+      const container = document.getElementById('code-container');
+      container.innerHTML = lines.map((lineText, idx) => {
+        const lineNum = idx + 1; // 1-based line numbers
+        const highlighted = highlightPythonLine(lineText);
+        return `
+          <div id="code-line-${lineNum}" class="flex items-start px-2 py-0.5 rounded-r transition-colors">
+            <span class="w-7 text-right pr-3 select-none text-slate-400 dark:text-slate-600 text-[11px] pt-0.5">${lineNum}</span>
+            <pre class="whitespace-pre text-slate-800 dark:text-slate-200 flex-1">${highlighted || ' '}</pre>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function highlightPythonLine(code) {
+      // Escape HTML entities first
+      const escaped = code
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      // Single-pass tokenizer so generated <span class="..."> attributes (e.g. "600", "400") are never re-scanned
+      const tokenRegex = /(#.*$)|(['"])(?:\\.|(?!\2).)*\2|\b(def|return|for|in|while|if|else|elif|and|or|not|is|break|True|False|None)\b|\b(len|range|max|min|int|print)\b|\b(\d+)\b/g;
+
+      return escaped.replace(tokenRegex, (match, comment, quote, keyword, builtin, number) => {
+        if (comment) {
+          return `<span class="text-slate-400 dark:text-slate-500 italic">${comment}</span>`;
+        }
+        if (quote) {
+          return `<span class="text-emerald-600 dark:text-emerald-400">${match}</span>`;
+        }
+        if (keyword) {
+          return `<span class="text-indigo-600 dark:text-indigo-400 font-semibold">${keyword}</span>`;
+        }
+        if (builtin) {
+          return `<span class="text-sky-600 dark:text-sky-400">${builtin}</span>`;
+        }
+        if (number) {
+          return `<span class="text-amber-600 dark:text-amber-400">${number}</span>`;
+        }
+        return match;
+      });
+    }
+
+    function rebuildSimulation() {
+      pausePlayback();
+      state.steps = generateSteps(state.algoId, state.baseArray);
+      state.currentStep = 0;
+
+      const scrubber = document.getElementById('step-scrubber');
+      scrubber.max = Math.max(0, state.steps.length - 1);
+      scrubber.value = 0;
+
+      renderCurrentStep();
+    }
+
+    function renderCurrentStep() {
+      if (!state.steps.length) return;
+      const step = state.steps[state.currentStep];
+      const arr = step.array;
+      const maxVal = Math.max(...arr, 1);
+
+      // Update Step Counter & Scrubber
+      document.getElementById('step-counter').textContent = `Step ${state.currentStep} / ${state.steps.length - 1}`;
+      document.getElementById('step-scrubber').value = state.currentStep;
+      document.getElementById('metric-comp').textContent = step.comparisons;
+      document.getElementById('metric-writes').textContent = step.writes;
+      document.getElementById('step-explanation').textContent = step.explanation;
+
+      // Render Array Bars
+      const barsContainer = document.getElementById('bars-container');
+      const indicesContainer = document.getElementById('indices-container');
+      barsContainer.innerHTML = '';
+      indicesContainer.innerHTML = '';
+
+      arr.forEach((val, idx) => {
+        const heightPct = Math.max(14, Math.round((val / maxVal) * 100));
+        let colorClass = 'bg-sky-500 dark:bg-sky-500/90';
+        let ringClass = '';
+
+        if (step.swapping.includes(idx)) {
+          colorClass = 'bg-rose-500';
+          ringClass = 'ring-2 ring-rose-400/60 -translate-y-1';
+        } else if (step.comparing.includes(idx)) {
+          colorClass = 'bg-amber-400';
+          ringClass = 'ring-2 ring-amber-300/60 -translate-y-1';
+        } else if (step.pivot.includes(idx)) {
+          colorClass = 'bg-purple-500';
+          ringClass = 'ring-2 ring-purple-400/60 -translate-y-1';
+        } else if (step.sorted.includes(idx)) {
+          colorClass = 'bg-emerald-500';
+        }
+
+        const barWrap = document.createElement('div');
+        barWrap.className = 'flex-1 max-w-[54px] h-full flex flex-col justify-end items-center group';
+
+        const valLabel = document.createElement('span');
+        valLabel.className = 'text-[11px] sm:text-xs font-mono font-bold mb-1 text-slate-700 dark:text-slate-200';
+        valLabel.textContent = val;
+
+        const bar = document.createElement('div');
+        bar.style.height = `${heightPct}%`;
+        bar.className = `w-full rounded-t-xl bar-transition shadow-sm ${colorClass} ${ringClass}`;
+
+        barWrap.appendChild(valLabel);
+        barWrap.appendChild(bar);
+        barsContainer.appendChild(barWrap);
+
+        // Index pill
+        const idxEl = document.createElement('div');
+        idxEl.className = 'flex-1 max-w-[54px] text-center text-[10px] sm:text-[11px] font-mono text-slate-400 dark:text-slate-500';
+        idxEl.textContent = `[${idx}]`;
+        indicesContainer.appendChild(idxEl);
+      });
+
+      // Render Auxiliary Data Structure (if applicable)
+      renderAuxiliaryPanel(step.aux);
+
+      // Highlight Active Code Line (1-based line indexing)
+      const totalLines = ALGORITHMS[state.algoId].code.length;
+      for (let lineNum = 1; lineNum <= totalLines; lineNum++) {
+        const el = document.getElementById(`code-line-${lineNum}`);
+        if (el) {
+          if (lineNum === step.line) {
+            el.classList.add('code-line-active');
+            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          } else {
+            el.classList.remove('code-line-active');
+          }
+        }
+      }
+
+      // Render Variable Watch Grid
+      const varsGrid = document.getElementById('variables-grid');
+      const entries = Object.entries(step.vars || {});
+      if (entries.length === 0) {
+        varsGrid.innerHTML = `<div class="col-span-full text-xs text-slate-400 italic">No active local variables</div>`;
+      } else {
+        varsGrid.innerHTML = entries.map(([k, v]) => `
+          <div class="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-2">
+            <span class="text-xs font-mono text-indigo-600 dark:text-indigo-400 font-semibold truncate">${k}</span>
+            <span class="text-xs font-mono font-bold text-slate-800 dark:text-slate-100 truncate">${v}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    function renderAuxiliaryPanel(aux) {
+      const panel = document.getElementById('aux-panel');
+      const title = document.getElementById('aux-title');
+      const subtitle = document.getElementById('aux-subtitle');
+      const content = document.getElementById('aux-content');
+
+      if (!aux) {
+        panel.classList.add('hidden');
+        return;
+      }
+
+      panel.classList.remove('hidden');
+      title.textContent = aux.label || 'Auxiliary Memory';
+      subtitle.textContent = '';
+
+      if (aux.type === 'merge') {
+        content.innerHTML = `
+          <div class="grid grid-cols-2 gap-3">
+            <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+              <div class="text-[10px] font-mono uppercase text-slate-400 mb-1">Left Subarray (L)</div>
+              <div class="flex flex-wrap gap-1">
+                ${aux.left.length ? aux.left.map(v => `<span class="px-2 py-0.5 rounded bg-sky-500/15 text-sky-600 dark:text-sky-300 font-mono text-xs font-bold">${v}</span>`).join('') : '<span class="text-xs text-slate-400 font-mono">empty</span>'}
+              </div>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+              <div class="text-[10px] font-mono uppercase text-slate-400 mb-1">Right Subarray (R)</div>
+              <div class="flex flex-wrap gap-1">
+                ${aux.right.length ? aux.right.map(v => `<span class="px-2 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-300 font-mono text-xs font-bold">${v}</span>`).join('') : '<span class="text-xs text-slate-400 font-mono">empty</span>'}
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (aux.type === 'count') {
+        content.innerHTML = `
+          <div class="flex items-center gap-1 min-w-max">
+            ${aux.array.map((c, idx) => `
+              <div class="flex flex-col items-center px-2 py-1 rounded-lg border ${aux.highlight === idx ? 'bg-amber-500/20 border-amber-500' : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700'}">
+                <span class="text-[10px] font-mono text-slate-400">${idx}</span>
+                <span class="text-xs font-mono font-bold">${c}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else if (aux.type === 'count_output') {
+        content.innerHTML = `
+          <div class="flex items-center gap-1.5 min-w-max">
+            ${aux.output.map((val, idx) => `
+              <div class="flex flex-col items-center px-2.5 py-1 rounded-lg border ${aux.highlight === idx ? 'bg-rose-500/20 border-rose-500' : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700'}">
+                <span class="text-[10px] font-mono text-slate-400">out[${idx}]</span>
+                <span class="text-xs font-mono font-bold">${val === null ? '·' : val}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else if (aux.type === 'buckets') {
+        content.innerHTML = `
+          <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1.5 min-w-[380px]">
+            ${aux.buckets.map((b, idx) => `
+              <div class="p-1.5 rounded-xl border ${aux.activeBucket === idx ? 'bg-indigo-500/15 border-indigo-500' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700'} flex flex-col items-center min-h-[58px]">
+                <span class="text-[10px] font-mono font-bold text-slate-400 mb-1">B[${idx}]</span>
+                <div class="flex flex-col gap-0.5 w-full items-center">
+                  ${b.length ? b.map(v => `<span class="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-mono text-[11px] font-bold">${v}</span>`).join('') : '<span class="text-[10px] text-slate-400">-</span>'}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    }
+
+    // =========================================================================
+    // 5. PLAYBACK CONTROLS & CUSTOM ARRAY VALIDATION
+    // =========================================================================
+    function togglePlay() {
+      if (state.isPlaying) {
+        pausePlayback();
+      } else {
+        if (state.currentStep >= state.steps.length - 1) {
+          state.currentStep = 0;
+        }
+        state.isPlaying = true;
+        updatePlayButtonUI();
+        state.timerId = setInterval(() => {
+          if (state.currentStep < state.steps.length - 1) {
+            state.currentStep++;
+            renderCurrentStep();
+          } else {
+            pausePlayback();
+          }
+        }, state.speedMs);
+      }
+    }
+
+    function pausePlayback() {
+      state.isPlaying = false;
+      if (state.timerId) {
+        clearInterval(state.timerId);
+        state.timerId = null;
+      }
+      updatePlayButtonUI();
+    }
+
+    function updatePlayButtonUI() {
+      const iconPlay = document.getElementById('icon-play');
+      const iconPause = document.getElementById('icon-pause');
+      const text = document.getElementById('play-pause-text');
+      if (state.isPlaying) {
+        iconPlay.classList.add('hidden');
+        iconPause.classList.remove('hidden');
+        text.textContent = 'Pause';
+      } else {
+        iconPlay.classList.remove('hidden');
+        iconPause.classList.add('hidden');
+        text.textContent = 'Play';
+      }
+    }
+
+    function nextStep() {
+      pausePlayback();
+      if (state.currentStep < state.steps.length - 1) {
+        state.currentStep++;
+        renderCurrentStep();
+      }
+    }
+
+    function prevStep() {
+      pausePlayback();
+      if (state.currentStep > 0) {
+        state.currentStep--;
+        renderCurrentStep();
+      }
+    }
+
+    function resetPlayback() {
+      pausePlayback();
+      state.currentStep = 0;
+      renderCurrentStep();
+    }
+
+    function jumpToStep(stepIdx) {
+      pausePlayback();
+      state.currentStep = Math.max(0, Math.min(state.steps.length - 1, stepIdx));
+      renderCurrentStep();
+    }
+
+    function updateSpeed(val) {
+      const num = parseInt(val);
+      const multipliers = [0.25, 0.5, 0.75, 0.9, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0];
+      const delays = [1400, 1000, 750, 650, 520, 400, 300, 200, 120, 60];
+      document.getElementById('speed-label').textContent = `${multipliers[num - 1].toFixed(2).replace(/\.00$/, '.0')}x`;
+      state.speedMs = delays[num - 1];
+      if (state.isPlaying) {
+        pausePlayback();
+        togglePlay();
+      }
+    }
+
+    function showBanner(msg, isError = false) {
+      const banner = document.getElementById('status-banner');
+      const inner = document.getElementById('status-banner-inner');
+      banner.classList.remove('hidden');
+      inner.className = isError
+        ? 'px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+        : 'px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30';
+      inner.innerHTML = `<span>${msg}</span><button onclick="document.getElementById('status-banner').classList.add('hidden')" class="ml-4 font-bold">✕</button>`;
+      if (!isError) {
+        setTimeout(() => banner.classList.add('hidden'), 3200);
+      }
+    }
+
+    function applyCustomArray() {
+      const raw = document.getElementById('custom-array-input').value;
+      const parts = raw.split(/[\s,]+/).filter(Boolean);
+      if (parts.length < 2 || parts.length > 25) {
+        showBanner('Please enter between 2 and 25 integers separated by commas.', true);
+        return;
+      }
+      const parsed = parts.map(Number);
+      if (parsed.some(n => !Number.isInteger(n) || n < 0 || n > 999)) {
+        showBanner('Please enter non-negative integers between 0 and 999 (required for Counting/Radix/Bucket Sort).', true);
+        return;
+      }
+      state.baseArray = parsed;
+      showBanner(`Applied custom array of ${parsed.length} elements.`);
+      rebuildSimulation();
+    }
+
+    function generateRandomArray() {
+      const size = parseInt(document.getElementById('size-slider').value);
+      const arr = Array.from({ length: size }, () => Math.floor(Math.random() * 85) + 5);
+      state.baseArray = arr;
+      document.getElementById('custom-array-input').value = arr.join(', ');
+      rebuildSimulation();
+    }
+
+    function applyPreset(type) {
+      let arr = [];
+      if (type === 'small') arr = [64, 25, 12, 22, 11];
+      if (type === 'nearly') arr = [5, 12, 18, 15, 24, 31, 29, 42];
+      if (type === 'reverse') arr = [48, 40, 33, 27, 21, 14, 9, 3];
+      if (type === 'duplicates') arr = [18, 7, 25, 7, 18, 12, 25, 7];
+      state.baseArray = arr;
+      document.getElementById('custom-array-input').value = arr.join(', ');
+      rebuildSimulation();
+    }
+
+    function copyAlgorithmCode() {
+      const text = ALGORITHMS[state.algoId].code.join('\n');
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        const btn = document.getElementById('copy-code-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy Python Code'; }, 1500);
+      } catch (e) {
+        showBanner('Unable to copy code automatically.', true);
+      }
+      document.body.removeChild(textarea);
+    }
+
+    function toggleTheme() {
+      document.documentElement.classList.toggle('dark');
+    }
+
+    // Keyboard shortcuts (Left/Right arrow for stepping, Space for Play/Pause)
+    document.addEventListener('keydown', (e) => {
+      if (document.activeElement.tagName === 'INPUT') return;
+      if (e.key === 'ArrowRight') { e.preventDefault(); nextStep(); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); prevStep(); }
+      if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+    });
+
+    // Initialize App on Load
+    window.addEventListener('DOMContentLoaded', () => {
+      selectAlgorithm('selection');
+    });
+  </script>
+</body>
+</html>
